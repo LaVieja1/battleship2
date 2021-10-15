@@ -188,7 +188,111 @@ function gameLoop() {
     generateTable(cpuTablePlaceholder, cpuGB, cpuTable);
 
     if (!isPlayerTurn) {
-        cpuAttackHitLocation(playerGB);
+        cpuAttack(playerGB);
     }
 }
 
+function cpuAttack(gb) {
+    const gameStatus = document.querySelector(".game-status");
+
+    function randomCoordinate() {
+        return Math.floor(Math.random() * 10);
+    }
+
+    let xCpuAttack;
+    let yCpuAttack;
+    let isValidCoordinate = false;
+
+    if (
+        typeof cpuAttackHitLocation.x === "number" &&
+        typeof cpuAttackHitLocation.y === "number"
+    ) {
+        const chance = [
+            [0, 1],
+            [1, 0],
+            [0, -1],
+            [-1, 0],
+        ];
+        while (!isValidCoordinate) {
+            const chanced = chance[cpuAttackHitLocation.tried];
+            cpuAttackHitLocation.tried = cpuAttackHitLocation.tried + 1;
+            xCpuAttack = cpuAttackHitLocation.x + chance[0];
+            yCpuAttack = cpuAttackHitLocation.y + chance[1];
+
+            if (cpuAttackHitLocation.tried >= 4) {
+                cpuAttackHitLocation.tried = 0;
+                xCpuAttack = randomCoordinate();
+                yCpuAttack = randomCoordinate();
+            }
+            isValidCoordinate = checkAttackValidity(gb, xCpuAttack, yCpuAttack);
+        }
+    } else {
+        xCpuAttack = randomCoordinate();
+        yCpuAttack = randomCoordinate();
+        isValidCoordinate = checkAttackValidity(gb, xCpuAttack, yCpuAttack);
+        while (!isValidCoordinate) {
+            xCpuAttack = randomCoordinate();
+            yCpuAttack = randomCoordinate();
+            isValidCoordinate = checkAttackValidity(gb, xCpuAttack, yCpuAttack);
+        }
+    }
+
+    const attackInfo = gb.receiveAttack(xCpuAttack, yCpuAttack);
+
+    if (attackInfo === "miss") {
+        hitMissEvent(xCpuAttack, yCpuAttack, attackInfo);
+        gameStatus.textContent = `${
+            isPlayerTurn ? "Jugador" : "CPU"
+        } atacó ${`${+xCpuAttack + 1}${String.fromCharCode(
+            +yCpuAttack + 65
+        )}`}. Fue un fallo.`;
+        isPlayerTurn = !isPlayerTurn;
+    } else if (attackInfo === "hit") {
+        cpuAttackHitLocation.x = xCpuAttack;
+        cpuAttackHitLocation.y = yCpuAttack;
+        cpuAttackHitLocation.tried = 0;
+        hitMissEvent(xCpuAttack, yCpuAttack, attackInfo);
+        gameStatus.textContent = `${
+            isPlayerTurn ? "Jugador" : "CPU"
+        } atacó ${`${+xCpuAttack + 1}${String.fromCharCode(
+            +yCpuAttack + 65
+        )}`}. Fue un acierto.`;
+        isPlayerTurn = !!isPlayerTurn;
+    } else {
+        cpuAttackHitLocation.x = null;
+        cpuAttackHitLocation.y = null;
+        cpuAttackHitLocation.tried = 0;
+        isGameOver = sinkingEvent(xCpuAttack, yCpuAttack, gb);
+        isPlayerTurn = !!isPlayerTurn;
+    }
+
+    const tablePlaceholders = document.querySelectorAll(".table-placeholder");
+
+    if (isGameOver) {
+        tablePlaceholders.forEach((item) => {
+            item.classList.remove("turn");
+        });
+        gameOverEvent("player");
+    } else {
+        if (isPlayerTurn) {
+            setTimeout(() => {
+                tablePlaceholders[1].classList.add("turn");
+                document
+                    .querySelectorAll(".table-placeholder")
+                    .forEach((item) => item.remove());
+                gameLoop();
+            }, 1500);
+        } else {
+            setTimeout(() => {
+                tablePlaceholders.forEach((item) => {
+                    item.classList.remove("turn");
+                });
+                tablePlaceholders[0].classList.add("turn");
+                document
+                    .querySelectorAll(".table-placeholder")
+                    .forEach((item) => item.remove());
+                gameLoop();
+            }, 2000);
+        }
+    }
+}
