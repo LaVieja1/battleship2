@@ -296,3 +296,73 @@ function cpuAttack(gb) {
         }
     }
 }
+function checkAttackValidity(gb, x, y) {
+    if (!(x >= 0 && x <= 9) || !(y >= 0 && y <= 9)) return false;
+    if (
+        gb.getBoardArray()[x][y] !== "miss" &&
+        (gb.getBoardArray()[x][y] === "ocean" || !gb.getBoardArray()[x][y].isHit)
+    ) {
+        return true;
+    } else return false;
+}
+
+function hitMissEvent(x, y, info) {
+    const table = isPlayerTurn ? "table-cpu" : "table-player";
+    const trNodeArray = Array.from(document.querySelectorAll(`.${table} tr`));
+    trNodeArray[x].childNodes[y].classList.add(info);
+}
+
+function tileClickEvent(e, gb) {
+    const gameStatus = document.querySelector(".game-status");
+    const attackInfo = gb.receiveAttack(+e.target.dataset.x, +e.target.dataset.y);
+
+    if (attackInfo === "hit") {
+        e.target.classList.add("hit");
+        gameStatus.textContent = `${
+            isPlayerTurn ? "Jugador" : "CPU"
+        } atacó ${`${+e.target.dataset.x + 1}${String.fromCharCode(
+            +e.target.dataset.y + 65
+        )}`}. Fue un acierto.`;
+        isPlayerTurn = !!isPlayerTurn;
+    } else if (attackInfo === "miss") {
+        e.target.classList.add("miss");
+        gameStatus.textContent = `${
+            isPlayerTurn ? "Jugador" : "CPU"
+        } atacó ${`${+e.target.dataset.x + 1}${String.fromCharCode(
+            +e.target.dataset.y + 65
+        )}`}. Fue un fallo.`;
+        isPlayerTurn = !isPlayerTurn;
+    } else {
+        isGameOver = sinkingEvent(e.target.dataset.x, e.target.dataset.y, gb);
+        isPlayerTurn = !!isPlayerTurn;
+    }
+
+    const tablePlaceholders = document.querySelectorAll(".table-placeholder");
+
+    tablePlaceholders.forEach((item) => {
+        item.classList.remove("turn");
+    });
+
+    if (isGameOver) {
+        gameOverEvent("player");
+    } else {
+        if (isPlayerTurn) {
+            tablePlaceholders[1].classList.add("turn");
+            setTimeout(() => {
+                document
+                    .querySelectorAll(".table-placeholder")
+                    .forEach((item) => item.remove());
+                gameLoop();
+            }, 800);
+        } else {
+            tablePlaceholders[0].classList.add("turn");
+            setTimeout(() => {
+                document
+                    .querySelectorAll(".table-placeholder")
+                    .forEach((item) => item.remove());
+                gameLoop();
+            }, 2000);
+        }
+    }
+}
+
