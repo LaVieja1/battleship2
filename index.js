@@ -407,3 +407,245 @@ function sinkingEvent(x, y, gb) {
     return gameOverCheck(isPlayerTurn ? "player" : "cpu");
 }
 
+function gameOverCheck(winner) {
+    const isSunkArray =
+        winner === "player"
+            ? cpuShips.map((item) => {
+                return item.isSunk();
+            })
+        : playerShips.map((item) => {
+            return item.isSunk();
+        });
+
+    if (isSunkArray.every((item) => item)) {
+        return true;
+    }
+}
+
+function gameOverEvent(winner) {
+    const tablePlaceholders = document.querySelectorAll(".table-placeholder");
+    const gameReplayButton = document.createElement("button");
+
+    gameReplayButton.classList.add("button");
+    gameReplayButton.textContent = "¿Jugar otra vez?";
+
+    tablePlaceholders.forEach((item) => {
+        item.classList.remove("turn");
+    });
+
+    const gameStatus = document.querySelector(".game-status");
+    gameStatus.textContent = winner === "player" ? "Ganaste!" : "Computadora gana";
+
+    gameStatus.append(gameReplayButton);
+    gameReplayButton.focus();
+    gameReplayButton.addEventListener("click", () => {
+        window.location.reload();
+    });
+}
+
+function getCoordinates(index, x, y, isRotated = false) {
+    const shipCoordinates = [];
+    for (let i = 0; i < playerShips[index].getShipLength(); i++) {
+        if (isRotated) {
+            shipCoordinates[i] = { x: x + i, y: y };
+        } else {
+            shipCoordinates[i] = { x: x, y: y + i };
+        }
+    }
+    return shipCoordinates;
+}
+
+function checkDroppable(e) {
+    const trContainerArray = Array.from(
+        document.querySelectorAll(".placement-placeholder tr")
+    );
+
+    e.preventDefault();
+
+    const heldElement = document.querySelector(".drag");
+
+    const possibleCoordinates = getCoordinates(
+        heldElement.dataset.index,
+        +e.target.dataset.x,
+        +e.target.dataset.y,
+        heldElement.dataset.rotation === "true" ? true : false
+    );
+
+    const pcX = possibleCoordinates.map((item) => item.x);
+    const pcY = possibleCoordinates.map((item) => item.y);
+
+    trContainerArray.forEach((row) => {
+        row.childNodes.forEach((data) => {
+            if (!(pcX.includes(data.dataset.x) && pcY.includes(data.dataset.y))) {
+                data.classList.remove("outline");
+            }
+        });
+    });
+
+    if (
+        checkCoordinateValidity(
+            playerGB,
+            playerShips[+heldElement.dataset.index],
+            +possibleCoordinates[0].x,
+            +possibleCoordinates[0].y,
+            heldElement.dataset.rotation === "true" ? true : false
+        )
+    ) {
+        return possibleCoordinates;
+    }
+    return false;
+}
+
+function dragoverEvent(e) {
+    const trContainerArray = Array.from(
+        document.querySelectorAll(".placement-placeholder tr")
+    );
+    const possibleCoordinates = checkDroppable(e);
+
+    if (possibleCoordinates) {
+        possibleCoordinates.forEach((item) => {
+            trContainerArray[item.x].childNodes[item.y].classList.add("outline");
+        });
+    }
+}
+
+function dropEvent(e) {
+    const handheld = document.querySelector(".drag");
+    const trContainerArray = Array.from (
+        document.querySelectorAll(".placement-placeholder tr")
+    );
+    const possibleCoordinates = checkDroppable(e);
+    if (possibleCoordinates) {
+        possibleCoordinates.forEach((item) => {
+            trContainerArray[item.x].childNodes[item.y].classList.add("occupied");
+            trContainerArray[item.x].childNodes[item.y].dataset.blockIndex = 
+                handheld.dataset.index;
+        });
+        playerGB.setShipCoordinates(
+            playerShips[+handheld.dataset.index],
+            +e.target.dataset.x,
+            +e.target.dataset.y,
+            handheld.dataset.rotation == "true" ? true : false
+        );
+        handheld.classList.add("dropped");
+    }
+}
+
+function startDrag(e) {
+    const trContainerArray = Array.from(
+        document.querySelectorAll(".placement-placeholder tr")
+    );
+    e.target.classList.add("drag");
+    if (e.target.classList.contains("dropped")) {
+        e.target.classList.remove("dropped");
+        const placeCoordinates =
+            playerShips[+e.target.dataset.index].getShipCoordinates();
+        placeCoordinates.forEach((coordinate) => {
+            trContainerArray[coordinate.x].childNodes[coordinate.y].classList.remove(
+                "occupied"
+            );
+            playerGB.getBoardArray()[coordinate.x][coordinate.y] = "ocean";
+        });
+    }
+}
+
+function endDrag(e) {
+    const trContainerArray = Array.from(
+        document.querySelectorAll(".placement-placeholder tr")
+    );
+    e.target.classList.remove("drag");
+    trContainerArray.forEach((row) => {
+        row.childNodes.forEach((data) => {
+            data.classList.remove("outline");
+        });
+    });
+}
+
+function placeBlocks() {
+    const placementPlaceholder = document.createElement("div");
+    const placementInfo = document.createElement("p");
+    const placementInfoPara = document.createElement("p");
+    const table = document.createElement("table");
+    const blockWrapper = document.createElement("div");
+
+    const startButton = document.createElement("button");
+    startButton.textContent = "Iniciar Juego";
+
+    placementPlaceholder.classList.add("placement-placeholder");
+    blockWrapper.classList.add("block-wrapper");
+    placementInfo.classList.add("placement-info");
+    placementInfo.textContent =
+        "Arrastra los bloques a una posición. Clickea en ellos para rotarlos. Arrastra los bloques rojos para reemplazar los bloques.";
+    placementInfo.textContent =
+        "Clickea 'Iniciar Juego' sin poner bloques para empezar una partida con bloques aleatorios.";
+    placementInfo.append(placementInfoPara, startButton);
+
+    startButton.addEventListener("click", () => {
+        if (playerShips.some((item) => item.getShipCoordinates().length === 0)) {
+            positioningOfShips(playerGB, playerShips);
+        }
+        document.querySelectorAll("main > *").forEach((item) => {
+            item.remove();
+        });
+        positioningOfShips(cpuGB, cpuShips);
+        gameLoop();
+    });
+
+    document
+        .querySelector("main")
+        .append(blockWrapper, placementPlaceholder, placementInfo);
+
+    function generateBlocks() {
+        for (let i = 0; i < 5; i++) {
+            const node = document.createElement("div");
+            const innerNode = document.createElement("div");
+            node.classList.add("block-container");
+            innerNode.classList.add("block-container-inner");
+
+            node.dataset.type = playerShips[i].getShipType();
+            innerNode.dataset.index = i;
+            innerNode.draggable = true;
+            innerNode.dataset.rotation = false;
+            innerNode.addEventListener("click", () => {
+                if (!innerNode.classList.contains("rotated")) {
+                    innerNode.classList.add("rotated");
+                    innerNode.dataset.rotation = true;
+                } else {
+                    innerNode.classList.remove("rotated");
+                    innerNode.dataset.rotation = false;
+                }
+            });
+            innerNode.addEventListener("dragstart", startDrag);
+            innerNode.addEventListener("dragend", endDrag);
+            node.append(innerNode);
+            for (let j = 0; j < playerShips[i].getShipLength(); j++) {
+                const blockNode = document.createElement("div");
+                blockNode.classList.add("tiny-block");
+                innerNode.append(blockNode);
+            }
+            blockWrapper.append(node);
+        }
+    }
+
+    function generateTable(placeholder, table) {
+        for (let i = 0; i < 10; i++) {
+            const tableRow = document.createElement("tr");
+            table.append(tableRow);
+            for (let j = 0; j < 10; j++) {
+                const data = document.createElement("td");
+
+                data.addEventListener("dragover", dragoverEvent);
+                data.addEventListener("drop", dropEvent);
+                data.dataset.x = i;
+                data.dataset.y = j;
+                tableRow.append(data);
+            }
+        }
+        placeholder.append(table);
+    }
+
+    generateTable(placementPlaceholder, table);
+    generateBlocks();
+}
+
+placeBlocks();
