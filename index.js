@@ -366,3 +366,44 @@ function tileClickEvent(e, gb) {
     }
 }
 
+function sinkingEvent(x, y, gb) {
+    const gameStatus = document.querySelector(".game-status");
+    const table = isPlayerTurn ? "table-cpu" : "table-player";
+
+    const trNodeArray = Array.from(document.querySelectorAll(`.${table} tr`));
+
+    const tdNodeList = document.querySelectorAll(`.${table} td`);
+    tdNodeList.forEach((node) => {
+        if (
+            gb.getBoardArray()[node.dataset.x][node.dataset.y].type ===
+            gb.getBoardArray()[x][y].type
+        ) {
+            for (let i = -1; i <= 1; i++) {
+                for (let j = -1; j <= 1; j++) {
+                    if (
+                        +node.dataset.x + i >= 0 &&
+                        +node.dataset.x + i <= 9 &&
+                        +node.dataset.y + j >= 0 &&
+                        +node.dataset.y + j <= 9 &&
+                        gb.getBoardArray()[+node.dataset.x + i][+node.dataset.y + j] ===
+                            "ocean"
+                    ) {
+                        trNodeArray[+node.dataset.x + i].childNodes[
+                            +node.dataset.y + j
+                        ].classList.add("miss");
+                        gb.receiveAttack(+node.dataset.x + i, +node.dataset.y + j);
+                    }
+                }
+            }
+            gb.getBoardArray()[node.dataset.x][node.dataset.y].isSunk = true;
+            node.classList.add("sunk");
+        }
+    });
+    gameStatus.textContent = `${
+        isPlayerTurn ? "Jugador" : "CPU"
+    } hundió ${isPlayerTurn ? "CPU" : "Tu"} ${
+        gb.getBoardArray()[x][y].type
+    }.`;
+    return gameOverCheck(isPlayerTurn ? "player" : "cpu");
+}
+
